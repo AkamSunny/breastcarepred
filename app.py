@@ -65,6 +65,22 @@ def cancerPrediction():
         print(f"Prediction error: {e}")
         return render_template("home.html", output1=error_message, output2="")
 
+@app.route("/debug-predict", methods=["POST"])
+def debugPrediction():
+    try:
+        input_data = [100.0, 0.1, 0.05, 500.0, 800.0]  # Sample values
+        
+        data = {"data": input_data}
+        response = requests.post(HF_API_URL, json=data)
+        
+        return jsonify({
+            "status_code": response.status_code,
+            "response_text": response.text,
+            "response_json": response.json() if response.text else "No response"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok", "message": "Flask app is alive!"})
