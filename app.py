@@ -7,7 +7,8 @@ import re
 app = Flask(__name__)
 
 # Hugging Face API URL
-HF_API_URL = "https://huggingface.co/spaces/chemman/breastcare-api/predict"
+HF_API_URL = "https://chemman-breastcare-api.hf.space/predict"
+
 
 # Diagnostic logging
 print("Current directory:", os.getcwd())
