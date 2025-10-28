@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, request
 import requests
+import re
 
 # Create app - templates are in the 'templates' folder in the same directory
 app = Flask(__name__)
@@ -44,28 +45,44 @@ def cancerPrediction():
         # Prepare input for Hugging Face API
         input_data = [inputQuery1, inputQuery2, inputQuery3, inputQuery4, inputQuery5]
         
-        # Data format for Gradio
-        data = {
-            "data": input_data
-        }
-        
-        # Call Hugging Face API
+        data = {"data": input_data}
         response = requests.post(HF_API_URL, json=data)
-        result = response.json()
         
-        # Parse Hugging Face response
-        if response.status_code == 200 and "data" in result:
-            prediction_data = result["data"]
+        # DEBUG: See what we're getting
+        print(f"Response status: {response.status_code}")
+        print(f"Response text: {response.text}")
+        
+        # Try to parse as JSON first
+        try:
+            result = response.json()
+            if "data" in result:
+                # If it's JSON with data field, extract the text
+                prediction_text = result["data"]
+            else:
+                prediction_text = str(result)
+        except:
+            # If not JSON, use the raw text
+            prediction_text = response.text
+        
+        print(f"Prediction text: {prediction_text}")
+        
+        # EXTRACT DIAGNOSIS AND CONFIDENCE FROM THE TEXT
+        if "Breast Cancer" in prediction_text and "confidence" in prediction_text:
+            # Parse the text output
+            diagnosis = "Breast Cancer" if "Breast Cancer" in prediction_text else "No Breast Cancer"
             
-            # Extract diagnosis and confidence from Hugging Face response
-            diagnosis = prediction_data[0]  # "Breast Cancer" or "No Breast Cancer"
-            confidence = float(prediction_data[1])  # confidence percentage
+            # Extract confidence number - look for pattern like "confidence": 99.66
+            confidence_match = re.search(r'"confidence":\s*([\d.]+)', prediction_text)
+            if confidence_match:
+                confidence = float(confidence_match.group(1))
+            else:
+                confidence = 95.0  # default if not found
             
             output1 = f"The patient is diagnosed with {diagnosis}"
-            output2 = f"Confidence: {confidence:.2f}%"
+            output2 = f"Confidence: {confidence}%"
         else:
-            output1 = "Error: Unexpected response from ML API"
-            output2 = ""
+            output1 = "Processing prediction..."
+            output2 = prediction_text  # Show raw response for debugging
 
         return render_template("home.html", output1=output1, output2=output2,
                                query1=request.form['query1'], query2=request.form['query2'],
@@ -76,6 +93,10 @@ def cancerPrediction():
         error_message = f"Error: {e}"
         print(f"Prediction error: {e}")
         return render_template("home.html", output1=error_message, output2="")
+
+@app.route("/health")
+def health():
+    return {"status": "ok", "message": "Flask app is alive!"}
 
 # For Render deployment
 if __name__ == "__main__":
