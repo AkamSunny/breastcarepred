@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # Your Hugging Face Space URL
-HF_API_URL = "https://chemman-breast-care.hf.space/predict"
+HF_API_URL = "https://huggingface.co/spaces/chemman/breastcare_predict"
 
 @app.route("/")
 def home():
