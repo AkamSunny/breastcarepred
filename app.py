@@ -42,11 +42,16 @@ def cancerPrediction():
         inputQuery4 = float(request.form['query4'])
         inputQuery5 = float(request.form['query5'])
 
-        # Prepare input for Hugging Face API
-        input_data = [inputQuery1, inputQuery2, inputQuery3, inputQuery4, inputQuery5]
+        # Prepare input for Hugging Face API in the expected format
+        input_data = {
+            "perimeter_worst": inputQuery1,
+            "concave_points_worst": inputQuery2,
+            "concave_points_mean": inputQuery3,
+            "area_mean": inputQuery4,
+            "area_worst": inputQuery5
+        }
         
-        data = {"data": input_data}
-        response = requests.post(HF_API_URL, json=data)
+        response = requests.post(HF_API_URL, json=input_data)
         
         # DEBUG: See what we're getting
         print(f"Response status: {response.status_code}")
@@ -55,35 +60,21 @@ def cancerPrediction():
         # Try to parse as JSON first
         try:
             result = response.json()
-            if "data" in result:
-                # If it's JSON with data field, extract the text
-                prediction_text = result["data"]
+            if "message" in result and "confidence" in result:
+                prediction_text = result["message"]
+                confidence = result["confidence"]
+                diagnosis = "Breast Cancer" if "Breast Cancer" in prediction_text else "No Breast Cancer"
+                output1 = f"The patient is diagnosed with {diagnosis}"
+                output2 = f"Confidence: {confidence}%"
             else:
-                prediction_text = str(result)
+                output1 = "Processing prediction..."
+                output2 = str(result)
         except:
-            # If not JSON, use the raw text
-            prediction_text = response.text
-        
-        print(f"Prediction text: {prediction_text}")
-        
-        # EXTRACT DIAGNOSIS AND CONFIDENCE FROM THE TEXT
-        if "Breast Cancer" in prediction_text and "confidence" in prediction_text:
-            # Parse the text output
-            diagnosis = "Breast Cancer" if "Breast Cancer" in prediction_text else "No Breast Cancer"
-            
-            # Extract confidence number - look for pattern like "confidence": 99.66
-            confidence_match = re.search(r'"confidence":\s*([\d.]+)', prediction_text)
-            if confidence_match:
-                confidence = float(confidence_match.group(1))
-            else:
-                confidence = 95.0  # default if not found
-            
-            output1 = f"The patient is diagnosed with {diagnosis}"
-            output2 = f"Confidence: {confidence}%"
-        else:
             output1 = "Processing prediction..."
-            output2 = prediction_text  # Show raw response for debugging
-
+            output2 = response.text
+        
+        print(f"Prediction text: {prediction_text if 'prediction_text' in locals() else 'N/A'}")
+        
         return render_template("home.html", output1=output1, output2=output2,
                                query1=request.form['query1'], query2=request.form['query2'],
                                query3=request.form['query3'], query4=request.form['query4'],
